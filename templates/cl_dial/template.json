@@ -1,0 +1,7 @@
+{
+  "name": "传统 CL 表盘",
+  "type": "cl_dial",
+  "description": "使用 Java + XML 构建的自定义传统表盘项目。编译为 .cl 文件，通过 DexClassLoader 加载。",
+  "version": "1.0",
+  "author": "XTC Dial Factory"
+}

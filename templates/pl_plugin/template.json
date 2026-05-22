@@ -1,0 +1,7 @@
+{
+  "name": "PL 组件插件",
+  "type": "pl_plugin",
+  "description": "组合表盘的独立元素插件项目。编译为 .pl 文件，可作为组件在组合表盘画布中使用。",
+  "version": "1.0",
+  "author": "XTC Dial Factory"
+}

@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Qt / PySide
+*.ui.autogen
+
+# XTC build artifacts
+*.cl
+*.pl
+*.apk
+*.aab
+*.dex
+*.class
+*.keystore
+*.jks
+
+# Project runtime
+crash_logs/
+*.db
+dial_store_copy.db
+frida_insert_dial.js
+test_results.txt
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage

@@ -1,0 +1,7 @@
+{
+  "name": "组合表盘",
+  "type": "compose_dial",
+  "description": "通过配置驱动组合多个 .pl 插件元素（时间、日期、电池等）的表盘项目。支持可视化编辑。",
+  "version": "1.0",
+  "author": "XTC Dial Factory"
+}
