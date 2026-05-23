@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch, MagicMock, PropertyMock, call
 from pathlib import Path
 
-from xtc_dial_factory.build.deploy import Deployer, DeployError
+from xtc_dial_factory.build.deploy import Deployer, DeployError, _quote, _sanitize_adb_arg, _check_frida
 
 
 class TestDevicePaths:
@@ -104,22 +104,18 @@ class TestDeployFlow:
 
 class TestQuote:
     def test_quote_simple(self):
-        from xtc_dial_factory.build.deploy import _quote
         assert _quote("hello") == "'hello'"
 
     def test_quote_with_single_quote(self):
-        from xtc_dial_factory.build.deploy import _quote
         result = _quote("it's")
         assert "'" in result
 
     def test_quote_with_spaces(self):
-        from xtc_dial_factory.build.deploy import _quote
         assert _quote("/sdcard/xtc/dial/test/") == "'/sdcard/xtc/dial/test/'"
 
 
 class TestSanitizeAdbArg:
     def test_sanitize_windows_path(self):
-        from xtc_dial_factory.build.deploy import _sanitize_adb_arg
         import platform
         if platform.system() == "Windows":
             result = _sanitize_adb_arg("/sdcard/test")
@@ -131,13 +127,11 @@ class TestSanitizeAdbArg:
 
 class TestCheckFrida:
     def test_frida_not_found(self):
-        from xtc_dial_factory.build.deploy import _check_frida
         with patch("subprocess.run", side_effect=FileNotFoundError):
             result = _check_frida()
             assert result is None
 
     def test_frida_found(self):
-        from xtc_dial_factory.build.deploy import _check_frida
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = "16.5.1\n"

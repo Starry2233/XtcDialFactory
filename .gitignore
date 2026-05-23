@@ -51,3 +51,6 @@ test_results.txt
 .ruff_cache/
 htmlcov/
 .coverage
+
+# Decompiled files
+decompiled/

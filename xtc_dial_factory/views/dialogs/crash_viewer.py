@@ -1,12 +1,13 @@
 """Crash log viewer dialog for XTC Dial Factory."""
 
 import os
+import subprocess
 
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QListWidget, QPlainTextEdit, QSplitter, QWidget
+    QListWidget, QPlainTextEdit, QSplitter, QWidget, QMessageBox
 )
 
 from ...error_reporter import (
@@ -213,7 +214,6 @@ class CrashViewerDialog(QDialog):
             try:
                 os.startfile(log_dir)
             except (OSError, AttributeError):
-                import subprocess
                 try:
                     subprocess.Popen(["explorer", log_dir])
                 except OSError:
@@ -222,7 +222,6 @@ class CrashViewerDialog(QDialog):
     @Slot()
     def _clear_logs(self):
         """Delete all crash logs and refresh the list."""
-        from PySide6.QtWidgets import QMessageBox
 
         reply = QMessageBox.question(
             self, "确认清除",

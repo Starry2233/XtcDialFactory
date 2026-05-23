@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PySide6.QtWidgets import QApplication
 from xtc_dial_factory.app import create_app
 from xtc_dial_factory.views.main_window import MainWindow
+from xtc_dial_factory import __version__, __app_name__
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -34,7 +35,6 @@ def setup_logging(verbose: bool):
 def main():
     args = parse_args(sys.argv)
     if args.version:
-        from xtc_dial_factory import __version__, __app_name__
         print(f"{__app_name__} v{__version__}")
         return 0
 

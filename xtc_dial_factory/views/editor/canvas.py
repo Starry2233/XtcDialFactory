@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsItem,
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsTextItem,
     QGraphicsItemGroup, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QComboBox, QSpinBox
+    QPushButton, QLabel, QComboBox, QSpinBox, QInputDialog
 )
 
 from ...models.project import Project, ThemeAssemblyElement, NetComposeDial
@@ -107,7 +107,7 @@ class ElementGraphicsItem(QGraphicsRectItem):
 
 
 class WatchFaceScene(QGraphicsScene):
-    """Scene representing a 360x360 round watch face."""
+    """Scene representing a 360x360 square watch face."""
 
     item_selected = Signal(object)  # Emits ThemeAssemblyElement
 
@@ -131,8 +131,8 @@ class WatchFaceScene(QGraphicsScene):
 
     def _draw_watch_background(self):
         """Draw the watch face boundary and background."""
-        # Watch body (circle)
-        body = QGraphicsEllipseItem(0, 0, self.watch_size, self.watch_size)
+        # Watch body (square)
+        body = QGraphicsRectItem(0, 0, self.watch_size, self.watch_size)
         body.setBrush(QBrush(QColor(15, 15, 15)))
         body.setPen(QPen(QColor(60, 60, 60), 2))
         self.addItem(body)
@@ -148,9 +148,10 @@ class WatchFaceScene(QGraphicsScene):
         cross.addToGroup(v_line)
         self.addItem(cross)
 
-        # Safe zone indicator (inner circle at 90% radius)
-        safe = QGraphicsEllipseItem(
-            self.watch_size * 0.05, self.watch_size * 0.05,
+        # Safe zone indicator (inner square at 90% margin)
+        margin = self.watch_size * 0.05
+        safe = QGraphicsRectItem(
+            margin, margin,
             self.watch_size * 0.9, self.watch_size * 0.9
         )
         safe.setPen(QPen(QColor(30, 30, 30), 1, Qt.DashLine))
@@ -472,7 +473,6 @@ class DialEditorCanvas(QWidget):
              "http://watchcdn.okii.com/watch-smartwatch/pic/1686228315621/danzaipaidui9.png"),
         ]
         if idx == 0:
-            from PySide6.QtWidgets import QInputDialog
             name, ok = QInputDialog.getText(self, "自定义组件", "组件名称:")
             if ok and name:
                 element = ThemeAssemblyElement(

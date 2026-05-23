@@ -1,6 +1,7 @@
 """Dialog for configuring inter-plugin communication in compose dials."""
 
 from PySide6.QtCore import Qt
+from ...models.project import PluginCommunication
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
@@ -118,7 +119,6 @@ class CommunicationDialog(QDialog):
 
     def _collect_communications(self) -> list:
         """Read communication data from the table rows."""
-        from ...models.project import PluginCommunication
         results = []
         for i in range(self.table.rowCount()):
             src_widget = self.table.cellWidget(i, 0)

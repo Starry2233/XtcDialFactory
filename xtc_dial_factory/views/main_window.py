@@ -6,15 +6,17 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Slot, Signal, QObject, QThread, QSettings, QByteArray
 from PySide6.QtWidgets import (
     QMainWindow, QMenuBar, QToolBar, QStatusBar, QDockWidget,
-    QTreeView, QListWidget, QListWidgetItem, QTabWidget, QSplitter, QWidget, QVBoxLayout,
-    QLabel, QMessageBox, QFileDialog, QMenu
+    QTreeView, QListWidget, QListWidgetItem, QTabWidget, QSplitter, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QMessageBox, QFileDialog, QMenu, QPushButton
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from PySide6.QtWidgets import QFileSystemModel
 
 from .. import __app_name__, __version__
 from ..app import AppSettings
-from ..models.project import Project, ProjectType, DialConfig, NetComposeDial, ThemeAssemblyElement
+from ..build.builder import ProjectBuilder
+from ..build.deploy import Deployer
+from ..models.project import Project, ProjectType, DialConfig, NetComposeDial, ThemeAssemblyElement, ClockType
 from .project_wizard import ProjectWizard
 from .editor.canvas import DialEditorCanvas
 from .editor.properties import PropertyEditor
@@ -590,7 +592,6 @@ class MainWindow(QMainWindow):
                 return
 
         settings = QSettings()
-        from PySide6.QtCore import QByteArray
         settings.setValue("main_geometry", self.saveGeometry())
         settings.setValue("main_state", self.saveState())
         event.accept()
@@ -642,7 +643,6 @@ class MainWindow(QMainWindow):
     def _build_project(self):
         if not self.current_project:
             return
-        from ..build.builder import ProjectBuilder
         builder = ProjectBuilder(self.settings)
         self._run_task_async(
             lambda cb: builder.build(self.current_project, on_output=cb),
@@ -652,7 +652,6 @@ class MainWindow(QMainWindow):
     def _deploy_project(self):
         if not self.current_project:
             return
-        from ..build.deploy import Deployer
         deployer = Deployer(self.settings)
         self._run_task_async(
             lambda cb: deployer.deploy(self.current_project, on_output=cb),
@@ -662,8 +661,6 @@ class MainWindow(QMainWindow):
     def _build_and_deploy(self):
         if not self.current_project:
             return
-        from ..build.builder import ProjectBuilder
-        from ..build.deploy import Deployer
         builder = ProjectBuilder(self.settings)
         deployer = Deployer(self.settings)
 
@@ -1022,7 +1019,6 @@ class MainWindow(QMainWindow):
 
         if project.project_type == ProjectType.COMPOSE_DIAL:
             canvas = DialEditorCanvas(project)
-            from ..views.editor.properties import PropertyEditor
             canvas.item_selected.connect(self.property_editor.load_element)
             index = self.tab_widget.addTab(canvas, f"画布: {project.name}")
             self.tab_widget.setCurrentIndex(index)
@@ -1036,7 +1032,6 @@ class MainWindow(QMainWindow):
 
     def _create_project_overview(self, project: Project) -> QWidget:
         """Create an overview page with key source files listed."""
-        from PySide6.QtWidgets import QListWidget, QListWidgetItem, QHBoxLayout, QPushButton
 
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -1141,7 +1136,6 @@ class MainWindow(QMainWindow):
 
 
 def ClockTypeForProjectType(pt: ProjectType) -> int:
-    from ..models.project import ClockType
     if pt == ProjectType.CL_DIAL:
         return ClockType.TRADITIONAL_CL.value
     elif pt == ProjectType.PL_PLUGIN:

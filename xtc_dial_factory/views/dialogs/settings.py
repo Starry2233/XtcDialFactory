@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QLineEdit, QPushButton,
     QDialogButtonBox, QFileDialog, QGroupBox, QLabel, QMessageBox,
-    QSpinBox, QComboBox
+    QSpinBox, QComboBox, QHBoxLayout
 )
 from PySide6.QtGui import QIntValidator
 
@@ -112,7 +112,6 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _row_with_button(self, widget, button):
-        from PySide6.QtWidgets import QHBoxLayout
         layout = QHBoxLayout()
         layout.addWidget(widget)
         layout.addWidget(button)

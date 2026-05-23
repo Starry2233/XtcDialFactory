@@ -8,6 +8,9 @@ from PySide6.QtCore import QSettings, QStandardPaths
 from PySide6.QtWidgets import QApplication
 
 from . import __app_name__, __version__, __org_name__
+from .themes import apply_theme
+from .error_reporter import install_crash_handler
+from PySide6.QtGui import QIcon
 
 
 class AppSettings:
@@ -123,7 +126,6 @@ def create_app(argv=None) -> QApplication:
 
     # Load saved theme and apply
     settings = AppSettings()
-    from .themes import apply_theme
     apply_theme(settings.theme)
 
     # Set app icon
@@ -131,11 +133,9 @@ def create_app(argv=None) -> QApplication:
     if icon_dir.exists():
         icon_files = list(icon_dir.glob("*.ico")) + list(icon_dir.glob("*.png"))
         if icon_files:
-            from PySide6.QtGui import QIcon
             app.setWindowIcon(QIcon(str(icon_files[0])))
 
     # Install crash handler after QApplication is created
-    from .error_reporter import install_crash_handler
     install_crash_handler()
 
     return app

@@ -5,6 +5,8 @@ import sys
 import datetime
 import traceback
 import platform
+from PySide6.QtWidgets import QMessageBox
+from PySide6.QtGui import QTextCursor
 
 
 CRASH_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "crash_logs")
@@ -74,9 +76,6 @@ def install_crash_handler():
 def _show_error_dialog(exc_type, exc_value, tb_text, log_path):
     """Display an error dialog with crash details."""
     try:
-        from PySide6.QtWidgets import QMessageBox
-        from PySide6.QtGui import QTextCursor
-
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Critical)
         msg_box.setWindowTitle("XTC Dial Factory - 意外错误")

@@ -2,6 +2,7 @@
 
 import os
 from PySide6.QtCore import Qt
+from ...models.project import AssetFile
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView,
@@ -91,7 +92,6 @@ class AssetManagerDialog(QDialog):
 
     def _collect_assets(self) -> list:
         """Read asset data from the table rows."""
-        from ...models.project import AssetFile
         results = []
         for i in range(self.table.rowCount()):
             local = self.table.item(i, 0).text().strip() if self.table.item(i, 0) else ""
