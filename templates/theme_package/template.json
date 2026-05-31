@@ -1,0 +1,7 @@
+{
+  "name": "主题包",
+  "type": "theme_package",
+  "description": "主题包可包含传统表盘(.cl)、图标包、背景、充电动画、AOD息屏、唤醒动画、聊天气泡头饰等。编译为JSON配置驱动。",
+  "version": "1.0",
+  "author": "XTC Dial Factory"
+}

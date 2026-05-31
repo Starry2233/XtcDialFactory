@@ -54,3 +54,12 @@ htmlcov/
 
 # Decompiled files
 decompiled/
+
+modules/
+
+# Test / debug scripts (Frida hook scripts, adb scripts, etc.)
+*.js
+frida_*/
+test_*.txt
+test_*.sh
+test_*.ps1

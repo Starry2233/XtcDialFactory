@@ -10,9 +10,11 @@ from enum import Enum, auto
 
 
 class ProjectType(Enum):
-    CL_DIAL = "cl_dial"          # Traditional .cl watch face
-    PL_PLUGIN = "pl_plugin"      # .pl compose element plugin
+    CL_DIAL = "cl_dial"            # Traditional .cl watch face
+    PL_PLUGIN = "pl_plugin"        # .pl compose element plugin
     COMPOSE_DIAL = "compose_dial"  # Compose dial (multiple .pl elements)
+    THEME_PACKAGE = "theme_package"  # Theme package (bundles dial + icon pack + extras)
+    ICON_PACKAGE = "icon_package"    # Icon pack (custom app icons)
 
 
 class ClockType(Enum):
@@ -166,8 +168,76 @@ class NetComposeDial:
         )
 
 
+@dataclass
+class IconPackConfig:
+    """IconConfig - stored as JSON within ThemePackConfig.mIconConfig or standalone.
+
+    Controls how app icons are themed (size, color, conversion, resources path).
+    """
+    iconName: str = ""          # Display name of the icon pack
+    sourceName: str = ""        # Unique identifier
+    iconDp: float = 48.0        # Icon display size in dp
+    nameColor: str = ""         # App name color (hex)
+    convertType: int = 0        # Icon conversion type (0=none, 1=mask, etc.)
+    spanConvertType: int = 0    # Span conversion type
+    themePath: str = ""         # Path to icon resources on device
+    originType: int = 0         # Origin icon type
+    keyVersion: int = 1         # Key version
+
+    def to_json(self) -> str:
+        return json.dumps({k: v for k, v in asdict(self).items() if v is not None},
+                          ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, s: str) -> "IconPackConfig":
+        d = json.loads(s) if isinstance(s, str) else s
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class ThemePackConfig:
+    """ThemePackConfig - config for a theme package.
+
+    A theme package bundles a dial + icon pack + optional extras (background,
+    launcher theme, charging animation, AOD, turn animation, bubbles).
+    Stored as JSON in the themepackage ContentProvider 'packConfig' column.
+    """
+    sourceName: str = ""
+    name: str = ""
+    nameCompat: str = ""
+    themePackDir: str = ""            # On-device dir: /sdcard/xtc/themepackage/<sourceName>/
+    versionCode: int = 1
+    keyVersion: int = 1
+    osType: str = ""                  # OS type compatibility string
+
+    # Bundled components (stored as JSON strings of their respective configs)
+    dialConfig: str = ""              # JSON of DialConfig for the bundled dial
+    mIconConfig: str = ""             # JSON of IconPackConfig for the bundled icon pack
+
+    # Optional extras
+    bgConfig: str = ""                # Background config JSON
+    launcherThemeConfig: str = ""     # Launcher theme config JSON
+    chargeConfig: str = ""            # Charging animation config JSON
+    aodConfig: str = ""               # Always-on-display config JSON
+    turnConfig: str = ""              # Turn/wake animation config JSON
+
+    # Chat extras
+    bubbleId: str = ""
+    headId: str = ""
+    nicknameId: str = ""
+
+    def to_json(self) -> str:
+        return json.dumps({k: v for k, v in asdict(self).items() if v is not None},
+                          ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, s: str) -> "ThemePackConfig":
+        d = json.loads(s) if isinstance(s, str) else s
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
 class Project:
-    """A project represents a dial, plugin, or compose dial project."""
+    """A project represents a dial, plugin, compose dial, theme package or icon package project."""
 
     def __init__(self, name: str = "", project_type: ProjectType = ProjectType.CL_DIAL,
                  package_name: str = "", author: str = ""):
@@ -182,13 +252,20 @@ class Project:
         # Project specific
         self.dial_config: Optional[DialConfig] = None
         self.compose_dial: Optional[NetComposeDial] = None
+        self.theme_pack_config: Optional[ThemePackConfig] = None
+        self.icon_pack_config: Optional[IconPackConfig] = None
         self.plugins: List[str] = field(default_factory=list)  # List of .pl source names
         self.custom_plugins: List[str] = []  # Imported .pl source names
+        self.plugin_type: int = 1  # Plugin category type (1=normal, 7=background, 11=text) for PL_PLUGIN
         self.communications: List[PluginCommunication] = []
         self.assets: List[AssetFile] = []    # Extra files to deploy (images, etc.)
         self.preview_image: str = ""          # Preview thumbnail (relative path in project dir)
 
         self.changelog: List[str] = []
+
+        # Build system: "traditional" (javac → d8 → aapt → apksigner)
+        # or "gradle" (runs Gradle wrapper, copies output from app/build/outputs/)
+        self.build_system: str = "traditional"
 
         self._dirty = False
         self._project_file = ""
@@ -201,7 +278,17 @@ class Project:
 
     def get_dial_dir(self) -> str:
         """Get the on-device dial directory."""
+        if self.project_type == ProjectType.THEME_PACKAGE:
+            return f"/sdcard/xtc/themepackage/{self.source_name}/"
         return f"/sdcard/xtc/dial/{self.source_name}/"
+
+    def get_theme_pack_dir(self) -> str:
+        """Get the on-device theme package directory."""
+        return f"/sdcard/xtc/themepackage/{self.source_name}/"
+
+    def get_icon_pack_dir(self) -> str:
+        """Get the on-device icon pack directory (within theme package)."""
+        return f"/sdcard/xtc/themepackage/{self.source_name}/icon/"
 
     def get_manifest_path(self) -> str:
         return os.path.join(self.root_dir, "AndroidManifest.xml")
@@ -210,8 +297,10 @@ class Project:
         return os.path.join(self.root_dir, "build.gradle")
 
     def get_config_path(self) -> str:
-        if self.project_type == ProjectType.COMPOSE_DIAL:
-            return os.path.join(self.root_dir, "config.json")
+        if self.project_type == ProjectType.THEME_PACKAGE:
+            return os.path.join(self.root_dir, "themepack.json")
+        elif self.project_type == ProjectType.ICON_PACKAGE:
+            return os.path.join(self.root_dir, "icon_config.json")
         return os.path.join(self.root_dir, "config.json")
 
     def get_src_dir(self) -> str:
@@ -270,7 +359,7 @@ class Project:
         self.version_code += 1
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "name": self.name,
             "project_type": self.project_type.value,
             "package_name": self.package_name,
@@ -281,10 +370,17 @@ class Project:
             "source_name": self.source_name,
             "changelog": list(self.changelog),
             "custom_plugins": list(self.custom_plugins),
+            "plugin_type": self.plugin_type,
             "communications": [c.to_dict() for c in self.communications],
             "assets": [a.to_dict() for a in self.assets],
             "preview_image": self.preview_image,
+            "build_system": self.build_system,
         }
+        if self.theme_pack_config:
+            d["theme_pack_config"] = json.loads(self.theme_pack_config.to_json())
+        if self.icon_pack_config:
+            d["icon_pack_config"] = json.loads(self.icon_pack_config.to_json())
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "Project":
@@ -299,7 +395,13 @@ class Project:
         p.root_dir = d.get("root_dir", "")
         p.changelog = list(d.get("changelog", []))
         p.custom_plugins = list(d.get("custom_plugins", []))
+        p.plugin_type = d.get("plugin_type", 1)
+        p.build_system = d.get("build_system", "traditional")
         p.communications = [PluginCommunication.from_dict(c) for c in d.get("communications", [])]
         p.assets = [AssetFile.from_dict(a) for a in d.get("assets", [])]
         p.preview_image = d.get("preview_image", "")
+        if "theme_pack_config" in d:
+            p.theme_pack_config = ThemePackConfig.from_json(d["theme_pack_config"])
+        if "icon_pack_config" in d:
+            p.icon_pack_config = IconPackConfig.from_json(d["icon_pack_config"])
         return p

@@ -213,10 +213,7 @@ signed.apk → rename to .cl or .pl
 - Git Bash 会将 `/sdcard` 转换为本地 Windows 路径，必须用 PowerShell
 
 **签名配置：**
-在应用设置中配置 keystore 路径、密码和别名。默认 keystore 路径：
-```
-E:/android.keystore
-```
+在应用设置中配置 keystore 路径、密码和别名。
 
 ### 3.7 .cl 传统表盘接口
 

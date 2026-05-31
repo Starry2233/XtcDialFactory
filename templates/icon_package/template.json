@@ -1,0 +1,7 @@
+{
+  "name": "图标包",
+  "type": "icon_package",
+  "description": "自定义应用图标样式，可配置图标大小、颜色、遮罩类型等。部署到 /sdcard/xtc/themepackage/ 目录。",
+  "version": "1.0",
+  "author": "XTC Dial Factory"
+}

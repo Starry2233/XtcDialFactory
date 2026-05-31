@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPixmap, QIcon
 
-from ..models.project import Project, ProjectType, NetComposeDial, ThemeAssemblyElement, DialConfig
+from ..models.project import (Project, ProjectType, NetComposeDial, ThemeAssemblyElement,
+                               DialConfig, ThemePackConfig, IconPackConfig)
 
 
 class ProjectTypePage(QWizardPage):
@@ -45,12 +46,26 @@ class ProjectTypePage(QWizardPage):
         layout.addWidget(self.rb_compose)
         self.type_group.addButton(self.rb_compose, 2)
 
+        # Theme Package
+        self.rb_theme = QRadioButton("主题包")
+        self.rb_theme.setToolTip("包含表盘 + 图标包 + 可选附加组件（背景、充电动画、AOD等）")
+        layout.addWidget(self.rb_theme)
+        self.type_group.addButton(self.rb_theme, 3)
+
+        # Icon Package
+        self.rb_icon = QRadioButton("图标包")
+        self.rb_icon.setToolTip("自定义应用图标样式（大小、颜色、遮罩）")
+        layout.addWidget(self.rb_icon)
+        self.type_group.addButton(self.rb_icon, 4)
+
         self.rb_cl.setChecked(True)
         layout.addStretch()
 
     def project_type(self) -> ProjectType:
         id = self.type_group.checkedId()
-        return [ProjectType.CL_DIAL, ProjectType.PL_PLUGIN, ProjectType.COMPOSE_DIAL][id]
+        return [ProjectType.CL_DIAL, ProjectType.PL_PLUGIN,
+                ProjectType.COMPOSE_DIAL, ProjectType.THEME_PACKAGE,
+                ProjectType.ICON_PACKAGE][id]
 
 
 class ProjectInfoPage(QWizardPage):
@@ -84,8 +99,29 @@ class ProjectInfoPage(QWizardPage):
         self.version_name_edit = QLineEdit("1.0.0")
         layout.addRow("版本名称:", self.version_name_edit)
 
+        # Plugin type for .pl projects (determines DIY editor category)
+        self.plugin_type_combo = QComboBox()
+        self.plugin_type_combo.addItem("普通组件 (type=1)", 1)
+        self.plugin_type_combo.addItem("背景组件 (type=7)", 7)
+        self.plugin_type_combo.addItem("文本组件 (type=11)", 11)
+        self.plugin_type_combo.setToolTip(
+            "DIY 表盘编辑器中的组件分类：\n"
+            "  普通组件 — 时间、日期、电池、步数、天气等\n"
+            "  背景组件 — 全屏背景（GIF/图片）\n"
+            "  文本组件 — 自定义文本显示"
+        )
+        layout.addRow("组件类型:", self.plugin_type_combo)
+
         self.name_edit.textChanged.connect(self._update_package)
         self.name_edit.textChanged.connect(self.completeChanged)
+        self.name_edit.textChanged.connect(self._on_type_changed)
+        self.plugin_type_combo.currentIndexChanged.connect(self.completeChanged)
+
+    def _on_type_changed(self, name: str):
+        # Show/hide plugin type combo based on project type
+        # (the wizard type page hasn't been committed yet at creation time,
+        #  so we check at runtime via parent().type_page)
+        pass
 
     def _update_package(self, name: str):
         if name and not self.package_edit.isModified():
@@ -173,6 +209,82 @@ class ComposeConfigPage(QWizardPage):
         return []
 
 
+class ThemePackConfigPage(QWizardPage):
+    """Page for theme package configuration."""
+
+    def __init__(self):
+        super().__init__()
+        self.setTitle("主题包配置")
+        self.setSubTitle("配置主题包包含的内容")
+
+        layout = QVBoxLayout(self)
+
+        # Dial source selection
+        dial_group = QGroupBox("表盘设置")
+        dial_layout = QFormLayout(dial_group)
+        self.dial_source_edit = QLineEdit()
+        self.dial_source_edit.setPlaceholderText("现有 dial 的 sourceName（可选）")
+        dial_layout.addRow("表盘 sourceName:", self.dial_source_edit)
+        layout.addWidget(dial_group)
+
+        # Theme extras
+        extras_group = QGroupBox("附加组件（可选）")
+        extras_layout = QVBoxLayout(extras_group)
+
+        self.include_icon_pack = QCheckBox("包含图标包")
+        self.include_icon_pack.setChecked(True)
+        extras_layout.addWidget(self.include_icon_pack)
+
+        self.include_bg = QCheckBox("包含背景配置")
+        extras_layout.addWidget(self.include_bg)
+
+        self.include_charge = QCheckBox("包含充电动画")
+        extras_layout.addWidget(self.include_charge)
+
+        self.include_aod = QCheckBox("包含 AOD 息屏显示")
+        extras_layout.addWidget(self.include_aod)
+
+        self.include_turn = QCheckBox("包含唤醒动画")
+        extras_layout.addWidget(self.include_turn)
+
+        layout.addWidget(extras_group)
+        layout.addStretch()
+
+
+class IconPackConfigPage(QWizardPage):
+    """Page for icon package configuration."""
+
+    def __init__(self):
+        super().__init__()
+        self.setTitle("图标包配置")
+        self.setSubTitle("设置图标样式参数")
+
+        layout = QFormLayout(self)
+
+        self.icon_name_edit = QLineEdit()
+        self.icon_name_edit.setPlaceholderText("我的图标包")
+        layout.addRow("图标包名称:", self.icon_name_edit)
+
+        self.icon_dp_spin = QSpinBox()
+        self.icon_dp_spin.setRange(24, 128)
+        self.icon_dp_spin.setValue(48)
+        self.icon_dp_spin.setSuffix(" dp")
+        layout.addRow("图标大小:", self.icon_dp_spin)
+
+        self.name_color_edit = QLineEdit("#FFFFFF")
+        layout.addRow("应用名颜色:", self.name_color_edit)
+
+        self.convert_type_combo = QComboBox()
+        self.convert_type_combo.addItem("无转换", 0)
+        self.convert_type_combo.addItem("遮罩模式", 1)
+        self.convert_type_combo.addItem("缩放模式", 2)
+        layout.addRow("图标转换类型:", self.convert_type_combo)
+
+        info = QLabel("图标资源 PNG 文件可以在创建项目后添加到 assets 目录中。")
+        info.setWordWrap(True)
+        layout.addRow(info)
+
+
 class ProjectWizard(QWizard):
     """Wizard for creating new XTC projects."""
 
@@ -183,11 +295,41 @@ class ProjectWizard(QWizard):
 
         self.created_project: Project | None = None
 
-        # Pages
-        self.addPage(ProjectTypePage())
-        self.addPage(ProjectInfoPage())
-        self.addPage(ProjectLocationPage())
-        self.addPage(ComposeConfigPage())
+        # Pages (always added; visibility controlled via nextId)
+        self.type_page = ProjectTypePage()
+        self.info_page = ProjectInfoPage()
+        self.loc_page = ProjectLocationPage()
+        self.compose_page = ComposeConfigPage()
+        self.theme_page = ThemePackConfigPage()
+        self.icon_page = IconPackConfigPage()
+
+        self.addPage(self.type_page)
+        self.addPage(self.info_page)
+        self.addPage(self.loc_page)
+        self.addPage(self.compose_page)
+        self.addPage(self.theme_page)
+        self.addPage(self.icon_page)
+
+    def nextId(self) -> int:
+        """Control page flow based on project type."""
+        current_id = self.currentId()
+        if current_id == 0:  # ProjectTypePage -> InfoPage (always)
+            return 1
+        elif current_id == 1:  # InfoPage -> LocationPage (always)
+            return 2
+        elif current_id == 2:  # LocationPage -> conditional config page
+            ptype = self.type_page.project_type()
+            if ptype == ProjectType.COMPOSE_DIAL:
+                return 3
+            elif ptype == ProjectType.THEME_PACKAGE:
+                return 4
+            elif ptype == ProjectType.ICON_PACKAGE:
+                return 5
+            else:  # CL_DIAL or PL_PLUGIN — done
+                return -1
+        elif current_id in (3, 4, 5):
+            return -1  # last page
+        return super().nextId()
 
         # Each page needs autoFillBackground so stylesheet background-color takes effect
         for page_id in self.pageIds():
@@ -211,6 +353,8 @@ class ProjectWizard(QWizard):
         info_page = self.page(1)
         loc_page = self.page(2)
         compose_page = self.page(3)
+        theme_page = self.page(4)
+        icon_page = self.page(5)
 
         ptype = type_page.project_type()
         name = info_page.name_edit.text().strip()
@@ -231,7 +375,12 @@ class ProjectWizard(QWizard):
         elif ptype == ProjectType.CL_DIAL:
             self._create_cl_dial(project)
         elif ptype == ProjectType.PL_PLUGIN:
+            project.plugin_type = info_page.plugin_type_combo.currentData()
             self._create_pl_plugin(project)
+        elif ptype == ProjectType.THEME_PACKAGE:
+            self._create_theme_package(project, theme_page)
+        elif ptype == ProjectType.ICON_PACKAGE:
+            self._create_icon_package(project, icon_page)
 
         # Write project file
         project_file = os.path.join(project.root_dir, ".xtcproject")
@@ -446,10 +595,11 @@ public class Plugin implements IPlugin {{
         with open(os.path.join(project.root_dir, "AndroidManifest.xml"), "w", encoding="utf-8") as f:
             f.write(manifest)
 
-        # Write config.json
+        # Write config.json with metadata for DIY editor catalog
         config = {
             "sourceName": project.source_name,
-            "dialName": project.name,
+            "name": project.name,
+            "type": project.plugin_type,
             "versionCode": project.version_code
         }
         with open(os.path.join(project.root_dir, "config.json"), "w", encoding="utf-8") as f:
@@ -467,6 +617,83 @@ public class Plugin implements IPlugin {{
         }
         with open(os.path.join(project.root_dir, "deploy.json"), "w") as f:
             json.dump(deploy_info, f, indent=2)
+
+    def _create_theme_package(self, project: Project, theme_page: ThemePackConfigPage):
+        """Initialize theme package project."""
+        sn = project.source_name
+
+        theme_config = ThemePackConfig(
+            sourceName=sn,
+            name=project.name,
+            nameCompat=project.name,
+            themePackDir=f"/sdcard/xtc/themepackage/{sn}/",
+            versionCode=project.version_code,
+            keyVersion=1,
+        )
+
+        # Dial source (optional reference)
+        dial_source = theme_page.dial_source_edit.text().strip()
+        if dial_source:
+            dial_cfg = DialConfig(
+                sourceName=dial_source,
+                clockType=ClockType.TRADITIONAL_CL.value,
+                useState=1,
+                dialDir=f"/sdcard/xtc/dial/{dial_source}/",
+                versionCode=1,
+            )
+            theme_config.dialConfig = dial_cfg.to_json()
+
+        # Optional icon pack
+        if theme_page.include_icon_pack.isChecked():
+            icon_config = IconPackConfig(
+                iconName=f"{project.name} 图标",
+                sourceName=sn,
+                iconDp=48.0,
+                nameColor="#FFFFFF",
+                themePath=f"/sdcard/xtc/themepackage/{sn}/icon/",
+            )
+            theme_config.mIconConfig = icon_config.to_json()
+
+        project.theme_pack_config = theme_config
+
+        # Create directories
+        os.makedirs(os.path.join(project.root_dir, "dial"), exist_ok=True)
+        os.makedirs(os.path.join(project.root_dir, "icon"), exist_ok=True)
+        os.makedirs(os.path.join(project.root_dir, "preview"), exist_ok=True)
+
+        # Write themepack.json
+        with open(project.get_config_path(), "w", encoding="utf-8") as f:
+            f.write(theme_config.to_json())
+
+        # Write deploy info
+        deploy_info = {
+            "device_path": theme_config.themePackDir,
+            "source_name": sn,
+        }
+        with open(os.path.join(project.root_dir, "deploy.json"), "w") as f:
+            json.dump(deploy_info, f, indent=2)
+
+    def _create_icon_package(self, project: Project, icon_page: IconPackConfigPage):
+        """Initialize icon package project."""
+        sn = project.source_name
+
+        icon_config = IconPackConfig(
+            iconName=icon_page.icon_name_edit.text().strip() or f"{project.name}",
+            sourceName=sn,
+            iconDp=float(icon_page.icon_dp_spin.value()),
+            nameColor=icon_page.name_color_edit.text().strip() or "#FFFFFF",
+            convertType=icon_page.convert_type_combo.currentData(),
+            themePath=f"/sdcard/xtc/themepackage/{sn}/icon/",
+        )
+        project.icon_pack_config = icon_config
+
+        # Create directories
+        os.makedirs(os.path.join(project.root_dir, "icon"), exist_ok=True)
+        os.makedirs(os.path.join(project.root_dir, "preview"), exist_ok=True)
+
+        # Write icon_config.json
+        with open(project.get_config_path(), "w", encoding="utf-8") as f:
+            f.write(icon_config.to_json())
 
     def _write_gradle(self, project: Project):
         """Write a build script reference."""

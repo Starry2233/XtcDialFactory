@@ -948,12 +948,15 @@ class MainWindow(QMainWindow):
         )
         self.communication_action.setEnabled(has_elements)
 
-        # Asset action: only for compose dial projects
+        # Asset action: for compose dial, theme package, and icon package projects
         self.asset_action.setEnabled(
-            project.project_type == ProjectType.COMPOSE_DIAL
+            project.project_type in (ProjectType.COMPOSE_DIAL,
+                                     ProjectType.THEME_PACKAGE,
+                                     ProjectType.ICON_PACKAGE)
         )
         self.preview_action.setEnabled(
-            project.project_type in (ProjectType.CL_DIAL, ProjectType.COMPOSE_DIAL)
+            project.project_type in (ProjectType.CL_DIAL, ProjectType.COMPOSE_DIAL,
+                                     ProjectType.THEME_PACKAGE)
         )
 
         # Update window title
@@ -969,11 +972,41 @@ class MainWindow(QMainWindow):
 
     def _detect_project(self, path: str) -> Project | None:
         """Detect project type from directory contents."""
+        themepack_path = os.path.join(path, "themepack.json")
+        icon_config_path = os.path.join(path, "icon_config.json")
         config_path = os.path.join(path, "config.json")
         manifest_path = os.path.join(path, "AndroidManifest.xml")
 
         if not os.path.isdir(path):
             return None
+
+        # Check for theme package
+        if os.path.exists(themepack_path):
+            try:
+                with open(themepack_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                project = Project(data.get("name", os.path.basename(path)),
+                                  ProjectType.THEME_PACKAGE)
+                project.root_dir = path
+                from ..models.project import ThemePackConfig
+                project.theme_pack_config = ThemePackConfig.from_json(data)
+                return project
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Check for icon package
+        if os.path.exists(icon_config_path):
+            try:
+                with open(icon_config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                project = Project(data.get("iconName", os.path.basename(path)),
+                                  ProjectType.ICON_PACKAGE)
+                project.root_dir = path
+                from ..models.project import IconPackConfig
+                project.icon_pack_config = IconPackConfig.from_json(data)
+                return project
+            except (json.JSONDecodeError, KeyError):
+                pass
 
         # Check for compose dial config
         if os.path.exists(config_path):
@@ -1023,12 +1056,28 @@ class MainWindow(QMainWindow):
             index = self.tab_widget.addTab(canvas, f"画布: {project.name}")
             self.tab_widget.setCurrentIndex(index)
 
+        elif project.project_type in (ProjectType.THEME_PACKAGE, ProjectType.ICON_PACKAGE):
+            overview = self._create_project_overview(project)
+            type_label = self._type_label(project)
+            index = self.tab_widget.addTab(overview, f"{type_label}: {project.name}")
+            self.tab_widget.setCurrentIndex(index)
+
         else:
             # CL dial / PL plugin: show project overview with source file list
             overview = self._create_project_overview(project)
-            type_label = ".cl 传统表盘" if project.project_type == ProjectType.CL_DIAL else ".pl 组件插件"
+            type_label = self._type_label(project)
             index = self.tab_widget.addTab(overview, f"{type_label}: {project.name}")
             self.tab_widget.setCurrentIndex(index)
+
+    def _type_label(self, project: Project) -> str:
+        mapping = {
+            ProjectType.CL_DIAL: ".cl 传统表盘",
+            ProjectType.PL_PLUGIN: ".pl 组件插件",
+            ProjectType.COMPOSE_DIAL: "组合表盘",
+            ProjectType.THEME_PACKAGE: "主题包",
+            ProjectType.ICON_PACKAGE: "图标包",
+        }
+        return mapping.get(project.project_type, "未知")
 
     def _create_project_overview(self, project: Project) -> QWidget:
         """Create an overview page with key source files listed."""
@@ -1037,7 +1086,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.setAlignment(Qt.AlignCenter)
 
-        type_label = ".cl 传统表盘" if project.project_type == ProjectType.CL_DIAL else ".pl 组件插件"
+        type_label = self._type_label(project)
 
         # Header
         header = QLabel(
@@ -1122,15 +1171,34 @@ class MainWindow(QMainWindow):
         if project.project_type == ProjectType.COMPOSE_DIAL and project.compose_dial:
             with open(project.get_config_path(), "w", encoding="utf-8") as f:
                 f.write(project.compose_dial.to_json())
-        elif project.project_type in (ProjectType.CL_DIAL, ProjectType.PL_PLUGIN):
+        elif project.project_type == ProjectType.THEME_PACKAGE and project.theme_pack_config:
+            with open(project.get_config_path(), "w", encoding="utf-8") as f:
+                f.write(project.theme_pack_config.to_json())
+        elif project.project_type == ProjectType.ICON_PACKAGE and project.icon_pack_config:
+            with open(project.get_config_path(), "w", encoding="utf-8") as f:
+                f.write(project.icon_pack_config.to_json())
+        elif project.project_type == ProjectType.CL_DIAL:
             config = {
                 "sourceName": project.source_name,
                 "dialName": project.name,
                 "clockType": ClockTypeForProjectType(project.project_type),
                 "useState": 1,
-                "dialDir": f"/sdcard/xtc/dial/{project.source_name}/" if project.project_type == ProjectType.CL_DIAL else "",
+                "dialDir": f"/sdcard/xtc/dial/{project.source_name}/",
                 "versionCode": project.version_code
             }
+            with open(project.get_config_path(), "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        elif project.project_type == ProjectType.PL_PLUGIN:
+            config = {
+                "sourceName": project.source_name,
+                "name": project.name,
+                "type": getattr(project, "plugin_type", 1),
+                "versionCode": project.version_code,
+            }
+            if project.preview_image:
+                config["preview"] = os.path.splitext(
+                    os.path.basename(project.preview_image)
+                )[0]
             with open(project.get_config_path(), "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
 
@@ -1138,6 +1206,8 @@ class MainWindow(QMainWindow):
 def ClockTypeForProjectType(pt: ProjectType) -> int:
     if pt == ProjectType.CL_DIAL:
         return ClockType.TRADITIONAL_CL.value
+    elif pt == ProjectType.THEME_PACKAGE:
+        return ClockType.THEME_PACKAGE.value  # type=7
     elif pt == ProjectType.PL_PLUGIN:
         return 1  # Plugins use type 1 within compose dials
     return 9

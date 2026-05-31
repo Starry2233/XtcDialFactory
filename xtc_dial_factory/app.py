@@ -30,7 +30,7 @@ class AppSettings:
 
     @property
     def keystore_path(self) -> str:
-        return self._settings.value("keystore_path", "E:/android.keystore")
+        return self._settings.value("keystore_path", "")
 
     @keystore_path.setter
     def keystore_path(self, value: str):
